@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import styled from 'styled-components'
 import { ApolloProvider } from 'react-apollo'
-import { client } from './apollo/client'
-import { Route, Switch, BrowserRouter, Redirect } from 'react-router-dom'
+import { clientV2 as client } from './apollo/client'
+import { Route, Switch, Redirect } from 'react-router-dom'
 import GlobalPage from './pages/GlobalPage'
 import TokenPage from './pages/TokenPage'
 import PairPage from './pages/PairPage'
@@ -94,12 +94,14 @@ function App() {
         Object.keys(globalData).length > 0 &&
         globalChartData &&
         Object.keys(globalChartData).length > 0 ? (
-          <BrowserRouter>
+          <>
+            <Route path="/" element={<Redirect to={'/home/v3'} />}></Route>
+
             <Switch>
               <Route
                 exacts
                 strict
-                path="/token/:tokenAddress"
+                path="/token/:version/:tokenAddress"
                 render={({ match }) => {
                   if (OVERVIEW_TOKEN_BLACKLIST.includes(match.params.tokenAddress.toLowerCase())) {
                     return <Redirect to="/home" />
@@ -111,14 +113,14 @@ function App() {
                       </LayoutWrapper>
                     )
                   } else {
-                    return <Redirect to="/home" />
+                    return <Redirect to="/home/v3" />
                   }
                 }}
               />
               <Route
                 exacts
                 strict
-                path="/pair/:pairAddress"
+                path="/pair/:version/:pairAddress"
                 render={({ match }) => {
                   if (PAIR_BLACKLIST.includes(match.params.pairAddress.toLowerCase())) {
                     return <Redirect to="/home" />
@@ -130,7 +132,7 @@ function App() {
                       </LayoutWrapper>
                     )
                   } else {
-                    return <Redirect to="/home" />
+                    return <Redirect to="/home/v3" />
                   }
                 }}
               />
@@ -146,24 +148,24 @@ function App() {
                       </LayoutWrapper>
                     )
                   } else {
-                    return <Redirect to="/home" />
+                    return <Redirect to="/home/v3" />
                   }
                 }}
               />
 
-              <Route path="/home">
+              <Route path="/home/:version">
                 <LayoutWrapper savedOpen={savedOpen} setSavedOpen={setSavedOpen}>
                   <GlobalPage />
                 </LayoutWrapper>
               </Route>
 
-              <Route path="/tokens">
+              <Route path="/tokens/:version">
                 <LayoutWrapper savedOpen={savedOpen} setSavedOpen={setSavedOpen}>
                   <AllTokensPage />
                 </LayoutWrapper>
               </Route>
 
-              <Route path="/pairs">
+              <Route path="/pairs/:version">
                 <LayoutWrapper savedOpen={savedOpen} setSavedOpen={setSavedOpen}>
                   <AllPairsPage />
                 </LayoutWrapper>
@@ -176,9 +178,9 @@ function App() {
                 </Route>
               )}
 
-              <Redirect to="/home" />
+              <Redirect to="/home/v3" />
             </Switch>
-          </BrowserRouter>
+          </>
         ) : (
           <LocalLoader fill="true" />
         )}

@@ -11,6 +11,9 @@ import LogoMobile from '../../assets/logo-mobile.png'
 import { BasicLink } from '../Link'
 import { useMedia } from 'react-use'
 
+import VersionSwitcher from '../VersionSwitcher'
+import { useVersion } from '../../contexts/Application'
+
 const TitleWrapper = styled.div`
   text-decoration: none;
   z-index: 10;
@@ -64,6 +67,8 @@ export default function Title() {
   const below480 = useMedia('(max-width: 480px)')
   const logoWidth = below480 ? '48px' : '150px'
 
+  const { versionLabel } = useVersion()
+
   return (
     <TitleWrapper>
       <Flex alignItems="center" style={{ justifyContent: 'space-between' }}>
@@ -81,11 +86,12 @@ export default function Title() {
           </UniIcon>
         </RowFixed>
         {below1080 && (
-          <RowFixed style={{ alignItems: 'flex-end', margin: '0 20px 0 0' }}>
-            <BasicLink to="/home">
+          <RowFixed style={{ margin: '0 20px 0 0' }}>
+            <VersionSwitcher />
+            <BasicLink to={`/home/${versionLabel}`}>
               <Option activeText={history.location.pathname === '/home' ?? undefined}>Overview</Option>
             </BasicLink>
-            <BasicLink to="/tokens">
+            <BasicLink to={`/tokens/${versionLabel}`}>
               <Option
                 activeText={
                   (history.location.pathname.split('/')[1] === 'tokens' ||
@@ -96,7 +102,7 @@ export default function Title() {
                 Tokens
               </Option>
             </BasicLink>
-            <BasicLink to="/pairs">
+            <BasicLink to={`/pairs/${versionLabel}`}>
               <Option
                 activeText={
                   (history.location.pathname.split('/')[1] === 'pairs' ||
@@ -108,7 +114,7 @@ export default function Title() {
               </Option>
             </BasicLink>
             {1 == 0 && (
-              <BasicLink to="/accounts">
+              <BasicLink to={`/accounts/${versionLabel}`}>
                 <Option
                   activeText={
                     (history.location.pathname.split('/')[1] === 'accounts' ||

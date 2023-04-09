@@ -16,6 +16,8 @@ import { OVERVIEW_TOKEN_BLACKLIST } from '../../constants'
 import FormattedName from '../FormattedName'
 import { TYPE } from '../../Theme'
 
+import { useVersion } from '../../contexts/Application'
+
 dayjs.extend(utc)
 
 const PageButtons = styled.div`
@@ -134,6 +136,8 @@ function TopTokenList({ tokens, itemMax = 10 }) {
   const below680 = useMedia('(max-width: 680px)')
   const below600 = useMedia('(max-width: 600px)')
 
+  const { versionLabel } = useVersion()
+
   useEffect(() => {
     setMaxPage(1) // edit this to do modular
     setPage(1)
@@ -188,7 +192,7 @@ function TopTokenList({ tokens, itemMax = 10 }) {
           <Row>
             {!below680 && <div style={{ marginRight: '1rem', width: '10px' }}>{index}</div>}
             <TokenLogo address={item.id} />
-            <CustomLink style={{ marginLeft: '16px', whiteSpace: 'nowrap' }} to={'/token/' + item.id}>
+            <CustomLink style={{ marginLeft: '16px', whiteSpace: 'nowrap' }} to={`/token/${versionLabel}/${item.id}`}>
               <FormattedName
                 text={below680 ? item.symbol : item.name}
                 maxCharacters={below600 ? 8 : 16}

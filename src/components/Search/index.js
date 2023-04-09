@@ -14,10 +14,12 @@ import { useAllPairsInHyperswap, useAllTokensInHyperswap } from '../../contexts/
 import { OVERVIEW_TOKEN_BLACKLIST, PAIR_BLACKLIST } from '../../constants'
 
 import { transparentize } from 'polished'
-import { client } from '../../apollo/client'
 import { PAIR_SEARCH, TOKEN_SEARCH } from '../../apollo/queries'
 import FormattedName from '../FormattedName'
 import { TYPE } from '../../Theme'
+
+import { useVersion } from '../../contexts/Application'
+import { POOL_SEARCH_V3, TOKEN_SEARCH_V3 } from '../../apollo/queries-v3'
 
 const Container = styled.div`
   height: 48px;
@@ -165,6 +167,8 @@ export const Search = ({ small = false }) => {
   useTokenData(value)
   usePairData(value)
 
+  const { isV3, client } = useVersion()
+
   const below700 = useMedia('(max-width: 700px)')
   const below470 = useMedia('(max-width: 470px)')
   const below410 = useMedia('(max-width: 410px)')
@@ -189,11 +193,11 @@ export const Search = ({ small = false }) => {
               value: value ? value.toUpperCase() : '',
               id: value,
             },
-            query: TOKEN_SEARCH,
+            query: isV3 ? TOKEN_SEARCH_V3 : TOKEN_SEARCH,
           })
 
           let pairs = await client.query({
-            query: PAIR_SEARCH,
+            query: isV3 ? POOL_SEARCH_V3 : PAIR_SEARCH,
             variables: {
               tokens: tokens.data.asSymbol?.map((t) => t.id),
               id: value,
@@ -208,7 +212,7 @@ export const Search = ({ small = false }) => {
       }
     }
     fetchData()
-  }, [value])
+  }, [value, isV3, client])
 
   function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // $& means the whole matched string
@@ -388,6 +392,8 @@ export const Search = ({ small = false }) => {
   const [tokensShown, setTokensShown] = useState(3)
   const [pairsShown, setPairsShown] = useState(3)
 
+  const { versionLabel } = useVersion()
+
   function onDismiss() {
     setPairsShown(3)
     setTokensShown(3)
@@ -468,7 +474,7 @@ export const Search = ({ small = false }) => {
                 pair.token1.symbol = 'FTM'
               }
               return (
-                <BasicLink to={'/pair/' + pair.id} key={pair.id} onClick={onDismiss}>
+                <BasicLink to={`/pair/${versionLabel}/${pair.id}`} key={pair.id} onClick={onDismiss}>
                   <MenuItem>
                     <DoubleTokenLogo a0={pair?.token0?.id} a1={pair?.token1?.id} margin={true} />
                     <TYPE.body style={{ marginLeft: '10px' }}>
@@ -501,7 +507,7 @@ export const Search = ({ small = false }) => {
           )}
           {filteredTokenList.slice(0, tokensShown).map((token) => {
             return (
-              <BasicLink to={'/token/' + token.id} key={token.id} onClick={onDismiss}>
+              <BasicLink to={`/token/${versionLabel}/${token.id}`} key={token.id} onClick={onDismiss}>
                 <MenuItem>
                   <RowFixed>
                     <TokenLogo address={token.id} style={{ marginRight: '10px' }} />

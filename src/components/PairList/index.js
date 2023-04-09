@@ -17,6 +17,8 @@ import { TYPE } from '../../Theme'
 import { PAIR_BLACKLIST } from '../../constants'
 import { AutoColumn } from '../Column'
 
+import { useVersion } from '../../contexts/Application'
+
 dayjs.extend(utc)
 
 const PageButtons = styled.div`
@@ -153,6 +155,8 @@ function PairList({ pairs, color, disbaleLinks, maxItems = 10, useTracked = fals
   const [sortDirection, setSortDirection] = useState(true)
   const [sortedColumn, setSortedColumn] = useState(SORT_FIELD.FEES)
 
+  const { versionLabel } = useVersion()
+
   useEffect(() => {
     setMaxPage(1) // edit this to do modular
     setPage(1)
@@ -210,7 +214,11 @@ function PairList({ pairs, color, disbaleLinks, maxItems = 10, useTracked = fals
               a1={pairData.token1.id}
               margin={!below740}
             />
-            <CustomLink style={{ marginLeft: '20px', whiteSpace: 'nowrap' }} to={'/pair/' + pairAddress} color={color}>
+            <CustomLink
+              style={{ marginLeft: '20px', whiteSpace: 'nowrap' }}
+              to={`/pair/${versionLabel}/${pairAddress}`}
+              color={color}
+            >
               <FormattedName
                 text={pairData.token0.symbol + '-' + pairData.token1.symbol}
                 maxCharacters={below600 ? 8 : 16}

@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useReducer, useMemo, useCallback, useEffect, useState } from 'react'
-import { client } from '../apollo/client'
+import { clientV2 } from '../apollo/client'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
-import { useTimeframe } from './Application'
+import { useTimeframe, useVersion } from './Application'
 import {
   getPercentChange,
   getBlockFromTimestamp,
@@ -19,6 +19,14 @@ import {
   ALL_TOKENS,
   TOP_LPS_PER_PAIRS,
 } from '../apollo/queries'
+import {
+  ALL_POOLS_V3,
+  ALL_TOKENS_V3,
+  FTM_PRICE_V3,
+  GLOBAL_CHART_V3,
+  GLOBAL_DATA_V3,
+  GLOBAL_TXNS_V3,
+} from '../apollo/queries-v3'
 import weekOfYear from 'dayjs/plugin/weekOfYear'
 import { useAllPairData } from './PairData'
 const UPDATE = 'UPDATE'
@@ -210,7 +218,7 @@ export default function Provider({ children }) {
  * @param {*} ftmPrice
  * @param {*} oldFtmPrice
  */
-async function getGlobalData(ftmPrice, oldFtmPrice) {
+async function getGlobalData(ftmPrice, oldFtmPrice, isV3, client) {
   // data for each day , historic data used for % changes
   let data = {}
   let oneDayData = {}
@@ -234,32 +242,32 @@ async function getGlobalData(ftmPrice, oldFtmPrice) {
 
     // fetch the global data
     let result = await client.query({
-      query: GLOBAL_DATA(),
+      query: isV3 ? GLOBAL_DATA_V3() : GLOBAL_DATA(),
       fetchPolicy: 'cache-first',
     })
     data = result.data.uniswapFactory
 
     // fetch the historical data
     let oneDayResult = await client.query({
-      query: GLOBAL_DATA(oneDayBlock?.number),
+      query: isV3 ? GLOBAL_DATA_V3(oneDayBlock?.number) : GLOBAL_DATA(oneDayBlock?.number),
       fetchPolicy: 'cache-first',
     })
     oneDayData = oneDayResult.data.uniswapFactory
 
     let twoDayResult = await client.query({
-      query: GLOBAL_DATA(twoDayBlock?.number),
+      query: isV3 ? GLOBAL_DATA_V3(twoDayBlock?.number) : GLOBAL_DATA(twoDayBlock?.number),
       fetchPolicy: 'cache-first',
     })
     twoDayData = twoDayResult.data.uniswapFactory
 
     let oneWeekResult = await client.query({
-      query: GLOBAL_DATA(oneWeekBlock?.number),
+      query: isV3 ? GLOBAL_DATA_V3(oneWeekBlock?.number) : GLOBAL_DATA(oneWeekBlock?.number),
       fetchPolicy: 'cache-first',
     })
     const oneWeekData = oneWeekResult.data.uniswapFactory
 
     let twoWeekResult = await client.query({
-      query: GLOBAL_DATA(twoWeekBlock?.number),
+      query: isV3 ? GLOBAL_DATA_V3(twoWeekBlock?.number) : GLOBAL_DATA(twoWeekBlock?.number),
       fetchPolicy: 'cache-first',
     })
     const twoWeekData = twoWeekResult.data.uniswapFactory
@@ -315,7 +323,7 @@ async function getGlobalData(ftmPrice, oldFtmPrice) {
  * on main page
  * @param {*} oldestDateToFetch // start of window to fetch from
  */
-const getChartData = async (oldestDateToFetch) => {
+const getChartData = async (oldestDateToFetch, isV3, client) => {
   let data = []
   let weeklyData = []
   const utcEndTime = dayjs.utc()
@@ -325,7 +333,7 @@ const getChartData = async (oldestDateToFetch) => {
   try {
     while (!allFound) {
       let result = await client.query({
-        query: GLOBAL_CHART,
+        query: isV3 ? GLOBAL_CHART_V3 : GLOBAL_CHART,
         variables: {
           startTime: oldestDateToFetch,
           skip,
@@ -400,12 +408,12 @@ const getChartData = async (oldestDateToFetch) => {
 /**
  * Get and format transactions for global page
  */
-const getGlobalTransactions = async () => {
+const getGlobalTransactions = async (isV3, client) => {
   let transactions = {}
 
   try {
     let result = await client.query({
-      query: GLOBAL_TXNS,
+      query: isV3 ? GLOBAL_TXNS_V3 : GLOBAL_TXNS,
       fetchPolicy: 'cache-first',
     })
     transactions.mints = []
@@ -440,7 +448,7 @@ const getGlobalTransactions = async () => {
 /**
  * Gets the current price  of FTM, 24 hour price, and % change between them
  */
-const getFtmPrice = async () => {
+const getFtmPrice = async (isV3, client) => {
   const utcCurrentTime = dayjs()
   const utcOneDayBack = utcCurrentTime.subtract(1, 'day').startOf('minute').unix()
 
@@ -451,11 +459,11 @@ const getFtmPrice = async () => {
   try {
     let oneDayBlock = await getBlockFromTimestamp(utcOneDayBack)
     let result = await client.query({
-      query: FTM_PRICE(),
+      query: isV3 ? FTM_PRICE_V3() : FTM_PRICE(),
       fetchPolicy: 'cache-first',
     })
     let resultOneDay = await client.query({
-      query: FTM_PRICE(oneDayBlock),
+      query: isV3 ? FTM_PRICE_V3(oneDayBlock) : FTM_PRICE(oneDayBlock),
       fetchPolicy: 'cache-first',
     })
     const currentPrice = result?.data?.bundles[0]?.ethPrice
@@ -477,14 +485,14 @@ const TOKENS_TO_FETCH = 500
 /**
  * Loop through every pair on Hyperswap, used for search
  */
-async function getAllPairsOnHyperswap() {
+async function getAllPairsOnHyperswap(isV3, client) {
   try {
     let allFound = false
     let pairs = []
     let skipCount = 0
     while (!allFound) {
       let result = await client.query({
-        query: ALL_PAIRS,
+        query: isV3 ? ALL_POOLS_V3 : ALL_PAIRS,
         variables: {
           skip: skipCount,
         },
@@ -505,14 +513,14 @@ async function getAllPairsOnHyperswap() {
 /**
  * Loop through every token on Hyperswap, used for search
  */
-async function getAllTokensOnHyperswap() {
+async function getAllTokensOnHyperswap(isV3, client) {
   try {
     let allFound = false
     let skipCount = 0
     let tokens = []
     while (!allFound) {
       let result = await client.query({
-        query: ALL_TOKENS,
+        query: isV3 ? ALL_TOKENS_V3 : ALL_TOKENS,
         variables: {
           skip: skipCount,
         },
@@ -537,23 +545,25 @@ export function useGlobalData() {
   const [state, { update, updateAllPairsInHyperswap, updateAllTokensInHyperswap }] = useGlobalDataContext()
   const [ftmPrice, oldFtmPrice] = useFtmPrice()
 
+  const { isV3, client } = useVersion()
+
   const data = state?.globalData
 
   useEffect(() => {
     async function fetchData() {
-      let globalData = await getGlobalData(ftmPrice, oldFtmPrice)
+      let globalData = await getGlobalData(ftmPrice, oldFtmPrice, isV3, client)
       globalData && update(globalData)
 
-      let allPairs = await getAllPairsOnHyperswap()
+      let allPairs = await getAllPairsOnHyperswap(isV3, client)
       updateAllPairsInHyperswap(allPairs)
 
-      let allTokens = await getAllTokensOnHyperswap()
+      let allTokens = await getAllTokensOnHyperswap(isV3, client)
       updateAllTokensInHyperswap(allTokens)
     }
-    if (!data && ftmPrice && oldFtmPrice) {
+    if (!data && ftmPrice && oldFtmPrice && client) {
       fetchData()
     }
-  }, [ftmPrice, oldFtmPrice, update, data, updateAllPairsInHyperswap, updateAllTokensInHyperswap])
+  }, [ftmPrice, oldFtmPrice, update, data, updateAllPairsInHyperswap, updateAllTokensInHyperswap, isV3, client])
 
   return data || {}
 }
@@ -562,6 +572,8 @@ export function useGlobalChartData() {
   const [state, { updateChart }] = useGlobalDataContext()
   const [oldestDateFetch, setOldestDateFetched] = useState()
   const [activeWindow] = useTimeframe()
+
+  const { isV3, client } = useVersion()
 
   const chartDataDaily = state?.chartData?.daily
   const chartDataWeekly = state?.chartData?.weekly
@@ -586,13 +598,13 @@ export function useGlobalChartData() {
   useEffect(() => {
     async function fetchData() {
       // historical stuff for chart
-      let [newChartData, newWeeklyData] = await getChartData(oldestDateFetch)
+      let [newChartData, newWeeklyData] = await getChartData(oldestDateFetch, isV3, client)
       updateChart(newChartData, newWeeklyData)
     }
-    if (oldestDateFetch && !(chartDataDaily && chartDataWeekly)) {
+    if (oldestDateFetch && !(chartDataDaily && chartDataWeekly && client)) {
       fetchData()
     }
-  }, [chartDataDaily, chartDataWeekly, oldestDateFetch, updateChart])
+  }, [chartDataDaily, chartDataWeekly, oldestDateFetch, updateChart, isV3, client])
 
   return [chartDataDaily, chartDataWeekly]
 }
@@ -600,15 +612,18 @@ export function useGlobalChartData() {
 export function useGlobalTransactions() {
   const [state, { updateTransactions }] = useGlobalDataContext()
   const transactions = state?.transactions
+
+  const { isV3, client } = useVersion()
+
   useEffect(() => {
     async function fetchData() {
       if (!transactions) {
-        let txns = await getGlobalTransactions()
+        let txns = await getGlobalTransactions(isV3, client)
         updateTransactions(txns)
       }
     }
-    fetchData()
-  }, [updateTransactions, transactions])
+    client && fetchData()
+  }, [updateTransactions, transactions, isV3, client])
   return transactions
 }
 
@@ -616,15 +631,18 @@ export function useFtmPrice() {
   const [state, { updateFtmPrice }] = useGlobalDataContext()
   const ftmPrice = state?.[FTM_PRICE_KEY]
   const ftmPriceOld = state?.['oneDayPrice']
+
+  const { isV3, client } = useVersion()
+
   useEffect(() => {
     async function checkForFtmPrice() {
       if (!ftmPrice) {
-        let [newPrice, oneDayPrice, priceChange] = await getFtmPrice()
+        let [newPrice, oneDayPrice, priceChange] = await getFtmPrice(isV3, client)
         updateFtmPrice(newPrice, oneDayPrice, priceChange)
       }
     }
-    checkForFtmPrice()
-  }, [ftmPrice, updateFtmPrice])
+    client && checkForFtmPrice()
+  }, [ftmPrice, updateFtmPrice, isV3, client])
 
   return [ftmPrice, ftmPriceOld]
 }
@@ -665,7 +683,7 @@ export function useTopLps() {
         topPairs.map(async (pair) => {
           // for each one, fetch top LPs
           try {
-            const { data: results } = await client.query({
+            const { data: results } = await clientV2.query({
               query: TOP_LPS_PER_PAIRS,
               variables: {
                 pair: pair.toString(),

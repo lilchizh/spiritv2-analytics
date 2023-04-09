@@ -13,6 +13,7 @@ import { formattedNum } from '../../utils'
 import { TYPE } from '../../Theme'
 import DoubleTokenLogo from '../DoubleLogo'
 import { RowFixed } from '../Row'
+import { useVersion } from '../../contexts/Application'
 
 dayjs.extend(utc)
 
@@ -84,6 +85,8 @@ function LPList({ lps, disbaleLinks, maxItems = 10 }) {
   const [maxPage, setMaxPage] = useState(1)
   const ITEMS_PER_PAGE = maxItems
 
+  const { versionLabel } = useVersion()
+
   useEffect(() => {
     setMaxPage(1) // edit this to do modular
     setPage(1)
@@ -120,7 +123,7 @@ function LPList({ lps, disbaleLinks, maxItems = 10 }) {
         )} */}
 
         <DataText>
-          <CustomLink area="pair" to={'/pair/' + lp.pairAddress}>
+          <CustomLink area="pair" to={`/pair/${versionLabel}/${lp.pairAddress}`}>
             <RowFixed>
               {!below600 && <DoubleTokenLogo a0={lp.token0} a1={lp.token1} size={16} margin={true} />}
               {lp.pairName}

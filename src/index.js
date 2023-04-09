@@ -9,6 +9,8 @@ import ApplicationContextProvider from './contexts/Application'
 import UserContextProvider from './contexts/User'
 import App from './App'
 
+import { BrowserRouter } from 'react-router-dom'
+
 // initialize GA
 /*
 const GOOGLE_ANALYTICS_ID = process.env.REACT_APP_GOOGLE_ANALYTICS_ID
@@ -59,14 +61,16 @@ function Updaters() {
 }
 
 ReactDOM.render(
-  <ContextProviders>
-    <Updaters />
-    <ThemeProvider>
-      <>
-        <GlobalStyle />
-        <App />
-      </>
-    </ThemeProvider>
-  </ContextProviders>,
+  <BrowserRouter>
+    <ContextProviders>
+      <Updaters />
+      <ThemeProvider>
+        <>
+          <GlobalStyle />
+          <App />
+        </>
+      </ThemeProvider>
+    </ContextProviders>
+  </BrowserRouter>,
   document.getElementById('root')
 )

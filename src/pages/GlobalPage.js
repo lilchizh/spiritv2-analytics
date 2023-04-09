@@ -26,6 +26,8 @@ import { PageWrapper, ContentWrapper } from '../components'
 import CheckBox from '../components/Checkbox'
 import QuestionHelper from '../components/QuestionHelper'
 
+import { useVersion } from '../contexts/Application'
+
 const ListOptions = styled(AutoRow)`
   height: 40px;
   width: 100%;
@@ -52,6 +54,8 @@ function GlobalPage() {
   const allTokens = useAllTokenData()
   const transactions = useGlobalTransactions()
   const { totalLiquidityUSD, oneDayVolumeUSD, volumeChangeUSD, liquidityChangeUSD } = useGlobalData()
+
+  const { versionLabel } = useVersion()
 
   // breakpoints
   const below800 = useMedia('(max-width: 800px)')
@@ -135,7 +139,7 @@ function GlobalPage() {
               <TYPE.main fontSize={'1.125rem'} style={{ whiteSpace: 'nowrap' }}>
                 Top Tokens
               </TYPE.main>
-              <CustomLink to={'/tokens'}>See All</CustomLink>
+              <CustomLink to={`/tokens/${versionLabel}`}>See All</CustomLink>
             </RowBetween>
           </ListOptions>
           <Panel style={{ marginTop: '6px', padding: '1.125rem 0 ' }}>
@@ -153,7 +157,7 @@ function GlobalPage() {
                   text={'Hide untracked pairs'}
                 />
                 <QuestionHelper text="USD amounts may be inaccurate in low liquiidty pairs or pairs without ETH or stablecoins." />
-                <CustomLink to={'/pairs'}>See All</CustomLink>
+                <CustomLink to={`/pairs/${versionLabel}`}>See All</CustomLink>
               </AutoRow>
             </RowBetween>
           </ListOptions>

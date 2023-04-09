@@ -17,6 +17,8 @@ import { ButtonLight } from '../ButtonStyled'
 import { TYPE } from '../../Theme'
 import FormattedName from '../FormattedName'
 
+import { useVersion } from '../../contexts/Application'
+
 dayjs.extend(utc)
 
 const PageButtons = styled.div`
@@ -120,6 +122,8 @@ function PositionList({ positions }) {
   const [sortDirection, setSortDirection] = useState(true)
   const [sortedColumn, setSortedColumn] = useState(SORT_FIELD.VALUE)
 
+  const { versionLabel } = useVersion()
+
   useEffect(() => {
     setMaxPage(1) // edit this to do modular
     setPage(1)
@@ -149,8 +153,8 @@ function PositionList({ positions }) {
             <DoubleTokenLogo size={16} a0={position.pair.token0.id} a1={position.pair.token1.id} margin={!below740} />
           </AutoColumn>
           <AutoColumn gap="8px" justify="flex-start" style={{ marginLeft: '20px' }}>
-            <CustomLink to={'/pair/' + position.pair.id}>
-              <TYPE.main style={{ whiteSpace: 'nowrap' }} to={'/pair/'}>
+            <CustomLink to={`/pair/${versionLabel}/${position.pair.id}`}>
+              <TYPE.main style={{ whiteSpace: 'nowrap' }} to={`/pair/${versionLabel}`}>
                 <FormattedName
                   text={position.pair.token0.symbol + '-' + position.pair.token1.symbol}
                   maxCharacters={below740 ? 10 : 18}

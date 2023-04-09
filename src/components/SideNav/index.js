@@ -8,9 +8,10 @@ import { TYPE } from '../../Theme'
 import { withRouter } from 'react-router-dom'
 import { TrendingUp, List, PieChart, Disc } from 'react-feather'
 import Link from '../Link'
-import { useSessionStart } from '../../contexts/Application'
+import { useSessionStart, useVersion } from '../../contexts/Application'
 import { useDarkModeManager } from '../../contexts/LocalStorage'
 import Toggle from '../Toggle'
+import VersionSwitcher from '../VersionSwitcher'
 
 const Wrapper = styled.div`
   height: ${({ isMobile }) => (isMobile ? 'initial' : '100vh')};
@@ -105,21 +106,24 @@ function SideNav({ history }) {
 
   const [isDark, toggleDarkMode] = useDarkModeManager()
 
+  const { versionLabel } = useVersion()
+
   return (
     <Wrapper isMobile={below1080}>
       {!below1080 ? (
         <DesktopWrapper>
           <AutoColumn gap="1rem" style={{ marginLeft: '.75rem', marginTop: '1.5rem' }}>
             <Title />
+            <VersionSwitcher />
             {!below1080 && (
               <AutoColumn gap="1.25rem" style={{ marginTop: '1rem' }}>
-                <BasicLink to="/home">
+                <BasicLink to={`/home/${versionLabel}`}>
                   <Option activeText={history.location.pathname === '/home' ?? undefined}>
                     <TrendingUp size={20} style={{ marginRight: '.75rem' }} />
                     Overview
                   </Option>
                 </BasicLink>
-                <BasicLink to="/tokens">
+                <BasicLink to={`/tokens/${versionLabel}`}>
                   <Option
                     activeText={
                       (history.location.pathname.split('/')[1] === 'tokens' ||
@@ -131,7 +135,7 @@ function SideNav({ history }) {
                     Tokens
                   </Option>
                 </BasicLink>
-                <BasicLink to="/pairs">
+                <BasicLink to={`/pairs/${versionLabel}`}>
                   <Option
                     activeText={
                       (history.location.pathname.split('/')[1] === 'pairs' ||
@@ -144,7 +148,7 @@ function SideNav({ history }) {
                   </Option>
                 </BasicLink>
                 {1 == 0 && (
-                  <BasicLink to="/accounts">
+                  <BasicLink to={`/accounts/${versionLabel}`}>
                     <Option
                       activeText={
                         (history.location.pathname.split('/')[1] === 'accounts' ||

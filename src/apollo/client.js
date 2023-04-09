@@ -2,9 +2,17 @@ import { ApolloClient } from 'apollo-client'
 import { InMemoryCache } from 'apollo-cache-inmemory'
 import { HttpLink } from 'apollo-link-http'
 
-export const client = new ApolloClient({
+export const clientV2 = new ApolloClient({
   link: new HttpLink({
     uri: 'https://api.thegraph.com/subgraphs/name/spirit-dao/spiritswapv2-analytics',
+  }),
+  cache: new InMemoryCache(),
+  shouldBatch: true,
+})
+
+export const clientV3 = new ApolloClient({
+  link: new HttpLink({
+    uri: 'https://api.thegraph.com/subgraphs/name/iliaazhel/spirit-info',
   }),
   cache: new InMemoryCache(),
   shouldBatch: true,

@@ -3,8 +3,9 @@ import { timeframeOptions } from '../constants'
 import Web3 from 'web3'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
-import { healthClient } from '../apollo/client'
+import { clientV2, clientV3, healthClient } from '../apollo/client'
 import { SUBGRAPH_HEALTH } from '../apollo/queries'
+import { useLocation } from 'react-router-dom'
 dayjs.extend(utc)
 
 const UPDATE = 'UPDATE'
@@ -288,4 +289,28 @@ export function useListedTokens() {
   // }, [updateSupportedTokens, supportedTokens])
 
   return supportedTokens
+}
+
+export function useVersion() {
+  const { pathname } = useLocation()
+
+  if (pathname.includes('/v3')) {
+    return {
+      isV3: true,
+      client: clientV3,
+      versionLabel: 'v3',
+    }
+  } else if (pathname.includes('/v2')) {
+    return {
+      isV3: false,
+      client: clientV2,
+      versionLabel: 'v2',
+    }
+  } else {
+    return {
+      isV3: true,
+      client: clientV3,
+      versionLabel: 'v3',
+    }
+  }
 }

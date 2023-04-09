@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useReducer, useMemo, useCallback, useEffect, useState } from 'react'
 
-import { client } from '../apollo/client'
 import {
   PAIR_DATA,
   PAIR_CHART,
@@ -10,6 +9,16 @@ import {
   PAIRS_HISTORICAL_BULK,
   HOURLY_PAIR_RATES,
 } from '../apollo/queries'
+
+import {
+  FILTERED_TRANSACTIONS_V3,
+  HOURLY_POOL_RATES_V3,
+  POOLS_BULK,
+  POOLS_CURRENT,
+  POOLS_HISTORICAL_BULK,
+  POOL_CHART_V3,
+  POOL_DATA_V3,
+} from '../apollo/queries-v3'
 
 import { useFtmPrice } from './GlobalData'
 
@@ -25,7 +34,7 @@ import {
   splitQuery,
 } from '../utils'
 import { timeframeOptions } from '../constants'
-import { useLatestBlock } from './Application'
+import { useLatestBlock, useVersion } from './Application'
 
 const UPDATE = 'UPDATE'
 const UPDATE_PAIR_TXNS = 'UPDATE_PAIR_TXNS'
@@ -172,13 +181,13 @@ export default function Provider({ children }) {
   )
 }
 
-async function getBulkPairData(pairList, ftmPrice) {
+async function getBulkPairData(pairList, ftmPrice, isV3, client) {
   const [t1, t2, tWeek] = getTimestampsForChanges()
   let [{ number: b1 }, { number: b2 }, { number: bWeek }] = await getBlocksFromTimestamps([t1, t2, tWeek])
 
   try {
     let current = await client.query({
-      query: PAIRS_BULK,
+      query: isV3 ? POOLS_BULK : PAIRS_BULK,
       variables: {
         allPairs: pairList,
       },
@@ -188,7 +197,7 @@ async function getBulkPairData(pairList, ftmPrice) {
     let [oneDayResult, twoDayResult, oneWeekResult] = await Promise.all(
       [b1, b2, bWeek].map(async (block) => {
         let result = client.query({
-          query: PAIRS_HISTORICAL_BULK(block, pairList),
+          query: isV3 ? POOLS_HISTORICAL_BULK(block, pairList) : PAIRS_HISTORICAL_BULK(block, pairList),
           fetchPolicy: 'cache-first',
         })
         return result
@@ -214,7 +223,7 @@ async function getBulkPairData(pairList, ftmPrice) {
           let oneDayHistory = oneDayData?.[pair.id]
           if (!oneDayHistory) {
             let newData = await client.query({
-              query: PAIR_DATA(pair.id, b1),
+              query: isV3 ? POOL_DATA_V3(pair.id, b1) : PAIR_DATA(pair.id, b1),
               fetchPolicy: 'cache-first',
             })
             oneDayHistory = newData.data.pairs[0]
@@ -222,7 +231,7 @@ async function getBulkPairData(pairList, ftmPrice) {
           let twoDayHistory = twoDayData?.[pair.id]
           if (!twoDayHistory) {
             let newData = await client.query({
-              query: PAIR_DATA(pair.id, b2),
+              query: isV3 ? POOL_DATA_V3(pair.id, b2) : PAIR_DATA(pair.id, b2),
               fetchPolicy: 'cache-first',
             })
             twoDayHistory = newData.data.pairs[0]
@@ -230,7 +239,7 @@ async function getBulkPairData(pairList, ftmPrice) {
           let oneWeekHistory = oneWeekData?.[pair.id]
           if (!oneWeekHistory) {
             let newData = await client.query({
-              query: PAIR_DATA(pair.id, bWeek),
+              query: isV3 ? POOL_DATA_V3(pair.id, bWeek) : PAIR_DATA(pair.id, bWeek),
               fetchPolicy: 'cache-first',
             })
             oneWeekHistory = newData.data.pairs[0]
@@ -291,12 +300,12 @@ function parseData(data, oneDayData, twoDayData, oneWeekData, ftmPrice, oneDayBl
   return data
 }
 
-const getPairTransactions = async (pairAddress) => {
+const getPairTransactions = async (pairAddress, isV3, client) => {
   const transactions = {}
 
   try {
     let result = await client.query({
-      query: FILTERED_TRANSACTIONS,
+      query: isV3 ? FILTERED_TRANSACTIONS_V3 : FILTERED_TRANSACTIONS,
       variables: {
         allPairs: [pairAddress],
       },
@@ -312,7 +321,7 @@ const getPairTransactions = async (pairAddress) => {
   return transactions
 }
 
-const getPairChartData = async (pairAddress) => {
+const getPairChartData = async (pairAddress, isV3, client) => {
   let data = []
   const utcEndTime = dayjs.utc()
   let utcStartTime = utcEndTime.subtract(1, 'year').startOf('minute')
@@ -323,7 +332,7 @@ const getPairChartData = async (pairAddress) => {
     let skip = 0
     while (!allFound) {
       let result = await client.query({
-        query: PAIR_CHART,
+        query: isV3 ? POOL_CHART_V3 : PAIR_CHART,
         variables: {
           pairAddress: pairAddress,
           skip,
@@ -379,7 +388,7 @@ const getPairChartData = async (pairAddress) => {
   return data
 }
 
-const getHourlyRateData = async (pairAddress, startTime, latestBlock) => {
+const getHourlyRateData = async (pairAddress, startTime, latestBlock, isV3, client) => {
   try {
     const utcEndTime = dayjs.utc()
     let time = startTime
@@ -412,7 +421,7 @@ const getHourlyRateData = async (pairAddress, startTime, latestBlock) => {
       })
     }
 
-    const result = await splitQuery(HOURLY_PAIR_RATES, client, [pairAddress], blocks, 100)
+    const result = await splitQuery(isV3 ? HOURLY_POOL_RATES_V3 : HOURLY_PAIR_RATES, client, [pairAddress], blocks, 100)
 
     // format token FTM price results
     let values = []
@@ -454,13 +463,16 @@ const getHourlyRateData = async (pairAddress, startTime, latestBlock) => {
 export function Updater() {
   const [, { updateTopPairs }] = usePairDataContext()
   const [ftmPrice] = useFtmPrice()
+
+  const { isV3, client } = useVersion()
+
   useEffect(() => {
     async function getData() {
       // get top pairs by reserves
       let {
         data: { pairs },
       } = await client.query({
-        query: PAIRS_CURRENT,
+        query: isV3 ? POOLS_CURRENT : PAIRS_CURRENT,
         fetchPolicy: 'cache-first',
       })
 
@@ -470,11 +482,11 @@ export function Updater() {
       })
 
       // get data for every pair in list
-      let topPairs = await getBulkPairData(formattedPairs, ftmPrice)
+      let topPairs = await getBulkPairData(formattedPairs, ftmPrice, isV3, client)
       topPairs && updateTopPairs(topPairs)
     }
-    ftmPrice && getData()
-  }, [ftmPrice, updateTopPairs])
+    ftmPrice && client && getData()
+  }, [ftmPrice, updateTopPairs, isV3, client])
   return null
 }
 
@@ -483,6 +495,8 @@ export function useHourlyRateData(pairAddress, timeWindow) {
   const chartData = state?.[pairAddress]?.hourlyData?.[timeWindow]
   const latestBlock = useLatestBlock()
 
+  const { isV3, client } = useVersion()
+
   useEffect(() => {
     const currentTime = dayjs.utc()
     const windowSize = timeWindow === timeframeOptions.MONTH ? 'month' : 'week'
@@ -490,13 +504,13 @@ export function useHourlyRateData(pairAddress, timeWindow) {
       timeWindow === timeframeOptions.ALL_TIME ? 1589760000 : currentTime.subtract(1, windowSize).startOf('hour').unix()
 
     async function fetch() {
-      let data = await getHourlyRateData(pairAddress, startTime, latestBlock)
+      let data = await getHourlyRateData(pairAddress, startTime, latestBlock, isV3, client)
       updateHourlyData(pairAddress, data, timeWindow)
     }
-    if (!chartData) {
+    if (!chartData && client) {
       fetch()
     }
-  }, [chartData, timeWindow, pairAddress, updateHourlyData, latestBlock])
+  }, [chartData, timeWindow, pairAddress, updateHourlyData, latestBlock, isV3, client])
 
   return chartData
 }
@@ -511,6 +525,8 @@ export function useDataForList(pairList) {
 
   const [stale, setStale] = useState(false)
   const [fetched, setFetched] = useState([])
+
+  const { isV3, client } = useVersion()
 
   // reset
   useEffect(() => {
@@ -538,15 +554,17 @@ export function useDataForList(pairList) {
         unfetched.map((pair) => {
           return pair
         }),
-        ftmPrice
+        ftmPrice,
+        isV3,
+        client
       )
       setFetched(newFetched.concat(newPairData))
     }
-    if (ftmPrice && pairList && pairList.length > 0 && !fetched && !stale) {
+    if (ftmPrice && pairList && pairList.length > 0 && !fetched && !stale && client) {
       setStale(true)
       fetchNewPairData()
     }
-  }, [ftmPrice, state, pairList, stale, fetched])
+  }, [ftmPrice, state, pairList, stale, fetched, isV3, client])
 
   let formattedFetch =
     fetched &&
@@ -565,17 +583,19 @@ export function usePairData(pairAddress) {
   const [ftmPrice] = useFtmPrice()
   const pairData = state?.[pairAddress]
 
+  const { isV3, client } = useVersion()
+
   useEffect(() => {
     async function fetchData() {
       if (!pairData && pairAddress) {
-        let data = await getBulkPairData([pairAddress], ftmPrice)
+        let data = await getBulkPairData([pairAddress], ftmPrice, isV3, client)
         data && update(pairAddress, data[0])
       }
     }
-    if (!pairData && pairAddress && ftmPrice && isAddress(pairAddress)) {
+    if (!pairData && pairAddress && ftmPrice && isAddress(pairAddress) && client) {
       fetchData()
     }
-  }, [pairAddress, pairData, update, ftmPrice])
+  }, [pairAddress, pairData, update, ftmPrice, isV3, client])
 
   return pairData || {}
 }
@@ -586,15 +606,18 @@ export function usePairData(pairAddress) {
 export function usePairTransactions(pairAddress) {
   const [state, { updatePairTxns }] = usePairDataContext()
   const pairTxns = state?.[pairAddress]?.txns
+
+  const { isV3, client } = useVersion()
+
   useEffect(() => {
     async function checkForTxns() {
       if (!pairTxns) {
-        let transactions = await getPairTransactions(pairAddress)
+        let transactions = await getPairTransactions(pairAddress, isV3, client)
         updatePairTxns(pairAddress, transactions)
       }
     }
-    checkForTxns()
-  }, [pairTxns, pairAddress, updatePairTxns])
+    client && checkForTxns()
+  }, [pairTxns, pairAddress, updatePairTxns, isV3, client])
   return pairTxns
 }
 
@@ -602,15 +625,17 @@ export function usePairChartData(pairAddress) {
   const [state, { updateChartData }] = usePairDataContext()
   const chartData = state?.[pairAddress]?.chartData
 
+  const { isV3, client } = useVersion()
+
   useEffect(() => {
     async function checkForChartData() {
       if (!chartData) {
-        let data = await getPairChartData(pairAddress)
+        let data = await getPairChartData(pairAddress, isV3, client)
         updateChartData(pairAddress, data)
       }
     }
-    checkForChartData()
-  }, [chartData, pairAddress, updateChartData])
+    client && checkForChartData()
+  }, [chartData, pairAddress, updateChartData, isV3, client])
   return chartData
 }
 

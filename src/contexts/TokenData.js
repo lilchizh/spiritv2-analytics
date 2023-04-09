@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useReducer, useMemo, useCallback, useEffect } from 'react'
 
-import { client } from '../apollo/client'
 import {
   TOKEN_DATA,
   FILTERED_TRANSACTIONS,
@@ -9,6 +8,15 @@ import {
   TOKENS_DYNAMIC,
   PRICES_BY_BLOCK,
 } from '../apollo/queries'
+
+import {
+  FILTERED_TRANSACTIONS_V3,
+  PRICES_BY_BLOCK_V3,
+  TOKENS_CURRENT_V3,
+  TOKENS_DYNAMIC_V3,
+  TOKEN_CHART_V3,
+  TOKEN_DATA_V3,
+} from '../apollo/queries-v3'
 
 import { useFtmPrice } from './GlobalData'
 
@@ -24,7 +32,7 @@ import {
   splitQuery,
 } from '../utils'
 import { timeframeOptions } from '../constants'
-import { useLatestBlock } from './Application'
+import { useLatestBlock, useVersion } from './Application'
 
 const UPDATE = 'UPDATE'
 const UPDATE_TOKEN_TXNS = 'UPDATE_TOKEN_TXNS'
@@ -190,7 +198,7 @@ export default function Provider({ children }) {
   )
 }
 
-const getTopTokens = async (ftmPrice, ftmPriceOld) => {
+const getTopTokens = async (ftmPrice, ftmPriceOld, isV3, client) => {
   const utcCurrentTime = dayjs()
   const utcOneDayBack = utcCurrentTime.subtract(1, 'day').unix()
   const utcTwoDaysBack = utcCurrentTime.subtract(2, 'day').unix()
@@ -199,17 +207,17 @@ const getTopTokens = async (ftmPrice, ftmPriceOld) => {
 
   try {
     let current = await client.query({
-      query: TOKENS_CURRENT,
+      query: isV3 ? TOKENS_CURRENT_V3 : TOKENS_CURRENT,
       fetchPolicy: 'cache-first',
     })
 
     let oneDayResult = await client.query({
-      query: TOKENS_DYNAMIC(oneDayBlock),
+      query: isV3 ? TOKENS_DYNAMIC_V3(oneDayBlock) : TOKENS_DYNAMIC(oneDayBlock),
       fetchPolicy: 'cache-first',
     })
 
     let twoDayResult = await client.query({
-      query: TOKENS_DYNAMIC(twoDayBlock),
+      query: isV3 ? TOKENS_DYNAMIC_V3(twoDayBlock) : TOKENS_DYNAMIC(twoDayBlock),
       fetchPolicy: 'cache-first',
     })
 
@@ -235,14 +243,14 @@ const getTopTokens = async (ftmPrice, ftmPriceOld) => {
           // catch the case where token wasnt in top list in previous days
           if (!oneDayHistory) {
             let oneDayResult = await client.query({
-              query: TOKEN_DATA(token.id, oneDayBlock),
+              query: isV3 ? TOKEN_DATA_V3(token.id, oneDayBlock) : TOKEN_DATA(token.id, oneDayBlock),
               fetchPolicy: 'cache-first',
             })
             oneDayHistory = oneDayResult.data.tokens[0]
           }
           if (!twoDayHistory) {
             let twoDayResult = await client.query({
-              query: TOKEN_DATA(token.id, twoDayBlock),
+              query: isV3 ? TOKEN_DATA_V3(token.id, twoDayBlock) : TOKEN_DATA(token.id, twoDayBlock),
               fetchPolicy: 'cache-first',
             })
             twoDayHistory = twoDayResult.data.tokens[0]
@@ -260,8 +268,10 @@ const getTopTokens = async (ftmPrice, ftmPriceOld) => {
             twoDayHistory?.txCount ?? 0
           )
 
-          const currentLiquidityUSD = data?.totalLiquidity * ftmPrice * data?.derivedETH
-          const oldLiquidityUSD = oneDayHistory?.totalLiquidity * ftmPriceOld * oneDayHistory?.derivedETH
+          const currentLiquidityUSD = isV3 ? data?.totalLiquidity : data?.totalLiquidity * ftmPrice * data?.derivedETH
+          const oldLiquidityUSD = isV3
+            ? oneDayHistory?.totalLiquidity
+            : oneDayHistory?.totalLiquidity * ftmPriceOld * oneDayHistory?.derivedETH
 
           // percent changes
           const priceChangeUSD = getPercentChange(
@@ -302,7 +312,7 @@ const getTopTokens = async (ftmPrice, ftmPriceOld) => {
   }
 }
 
-const getTokenData = async (address, ftmPrice, ftmPriceOld) => {
+const getTokenData = async (address, ftmPrice, ftmPriceOld, isV3, client) => {
   const utcCurrentTime = dayjs()
   const utcOneDayBack = utcCurrentTime.subtract(1, 'day').startOf('minute').unix()
   const utcTwoDaysBack = utcCurrentTime.subtract(2, 'day').startOf('minute').unix()
@@ -317,21 +327,21 @@ const getTokenData = async (address, ftmPrice, ftmPriceOld) => {
   try {
     // fetch all current and historical data
     let result = await client.query({
-      query: TOKEN_DATA(address),
+      query: isV3 ? TOKEN_DATA_V3(address) : TOKEN_DATA(address),
       fetchPolicy: 'cache-first',
     })
     data = result?.data?.tokens?.[0]
 
     // get results from 24 hours in past
     let oneDayResult = await client.query({
-      query: TOKEN_DATA(address, oneDayBlock),
+      query: isV3 ? TOKEN_DATA_V3(address, oneDayBlock) : TOKEN_DATA(address, oneDayBlock),
       fetchPolicy: 'cache-first',
     })
     oneDayData = oneDayResult.data.tokens[0]
 
     // get results from 48 hours in past
     let twoDayResult = await client.query({
-      query: TOKEN_DATA(address, twoDayBlock),
+      query: isV3 ? TOKEN_DATA_V3(address, twoDayBlock) : TOKEN_DATA(address, twoDayBlock),
       fetchPolicy: 'cache-first',
     })
     twoDayData = twoDayResult.data.tokens[0]
@@ -339,14 +349,14 @@ const getTokenData = async (address, ftmPrice, ftmPriceOld) => {
     // catch the case where token wasnt in top list in previous days
     if (!oneDayData) {
       let oneDayResult = await client.query({
-        query: TOKEN_DATA(address, oneDayBlock),
+        query: isV3 ? TOKEN_DATA_V3(address, oneDayBlock) : TOKEN_DATA(address, oneDayBlock),
         fetchPolicy: 'cache-first',
       })
       oneDayData = oneDayResult.data.tokens[0]
     }
     if (!twoDayData) {
       let twoDayResult = await client.query({
-        query: TOKEN_DATA(address, twoDayBlock),
+        query: isV3 ? TOKEN_DATA_V3(address, twoDayBlock) : TOKEN_DATA(address, twoDayBlock),
         fetchPolicy: 'cache-first',
       })
       twoDayData = twoDayResult.data.tokens[0]
@@ -412,11 +422,11 @@ const getTokenData = async (address, ftmPrice, ftmPriceOld) => {
   return data
 }
 
-const getTokenTransactions = async (allPairsFormatted) => {
+const getTokenTransactions = async (allPairsFormatted, isV3, client) => {
   const transactions = {}
   try {
     let result = await client.query({
-      query: FILTERED_TRANSACTIONS,
+      query: isV3 ? FILTERED_TRANSACTIONS_V3 : FILTERED_TRANSACTIONS,
       variables: {
         allPairs: allPairsFormatted,
       },
@@ -431,11 +441,11 @@ const getTokenTransactions = async (allPairsFormatted) => {
   return transactions
 }
 
-const getTokenPairs = async (tokenAddress) => {
+const getTokenPairs = async (tokenAddress, isV3, client) => {
   try {
     // fetch all current and historical data
     let result = await client.query({
-      query: TOKEN_DATA(tokenAddress),
+      query: isV3 ? TOKEN_DATA_V3(tokenAddress) : TOKEN_DATA(tokenAddress),
       fetchPolicy: 'cache-first',
     })
     return result.data?.['pairs0'].concat(result.data?.['pairs1'])
@@ -444,7 +454,7 @@ const getTokenPairs = async (tokenAddress) => {
   }
 }
 
-const getIntervalTokenData = async (tokenAddress, startTime, interval = 3600, latestBlock) => {
+const getIntervalTokenData = async (tokenAddress, startTime, interval = 3600, latestBlock, isV3, client) => {
   const utcEndTime = dayjs.utc()
   let time = startTime
 
@@ -476,7 +486,7 @@ const getIntervalTokenData = async (tokenAddress, startTime, interval = 3600, la
       })
     }
 
-    let result = await splitQuery(PRICES_BY_BLOCK, client, [tokenAddress], blocks, 50)
+    let result = await splitQuery(isV3 ? PRICES_BY_BLOCK_V3 : PRICES_BY_BLOCK, client, [tokenAddress], blocks, 50)
 
     console.log('result ', result)
     // format token FTM price results
@@ -521,7 +531,7 @@ const getIntervalTokenData = async (tokenAddress, startTime, interval = 3600, la
   }
 }
 
-const getTokenChartData = async (tokenAddress) => {
+const getTokenChartData = async (tokenAddress, isV3, client) => {
   let data = []
   const utcEndTime = dayjs.utc()
   let utcStartTime = utcEndTime.subtract(1, 'year')
@@ -532,7 +542,7 @@ const getTokenChartData = async (tokenAddress) => {
     let skip = 0
     while (!allFound) {
       let result = await client.query({
-        query: TOKEN_CHART,
+        query: isV3 ? TOKEN_CHART_V3 : TOKEN_CHART,
         variables: {
           tokenAddr: tokenAddress,
           skip,
@@ -592,14 +602,17 @@ const getTokenChartData = async (tokenAddress) => {
 export function Updater() {
   const [, { updateTopTokens }] = useTokenDataContext()
   const [ftmPrice, ftmPriceOld] = useFtmPrice()
+
+  const { isV3, client } = useVersion()
+
   useEffect(() => {
     async function getData() {
       // get top pairs for overview list
-      let topTokens = await getTopTokens(ftmPrice, ftmPriceOld)
+      let topTokens = await getTopTokens(ftmPrice, ftmPriceOld, isV3, client)
       topTokens && updateTopTokens(topTokens)
     }
-    ftmPrice && ftmPriceOld && getData()
-  }, [ftmPrice, ftmPriceOld, updateTopTokens])
+    ftmPrice && ftmPriceOld && client && getData()
+  }, [ftmPrice, ftmPriceOld, updateTopTokens, isV3, client])
   return null
 }
 
@@ -608,13 +621,15 @@ export function useTokenData(tokenAddress) {
   const [ftmPrice, ftmPriceOld] = useFtmPrice()
   const tokenData = state?.[tokenAddress]
 
+  const { isV3, client } = useVersion()
+
   useEffect(() => {
-    if (!tokenData && ftmPrice && ftmPriceOld && isAddress(tokenAddress)) {
-      getTokenData(tokenAddress, ftmPrice, ftmPriceOld).then((data) => {
+    if (!tokenData && ftmPrice && ftmPriceOld && isAddress(tokenAddress) && client) {
+      getTokenData(tokenAddress, ftmPrice, ftmPriceOld, isV3, client).then((data) => {
         update(tokenAddress, data)
       })
     }
-  }, [ftmPrice, ftmPriceOld, tokenAddress, tokenData, update])
+  }, [ftmPrice, ftmPriceOld, tokenAddress, tokenData, update, isV3, client])
 
   return tokenData || {}
 }
@@ -622,6 +637,8 @@ export function useTokenData(tokenAddress) {
 export function useTokenTransactions(tokenAddress) {
   const [state, { updateTokenTxns }] = useTokenDataContext()
   const tokenTxns = state?.[tokenAddress]?.txns
+
+  const { isV3, client } = useVersion()
 
   const allPairsFormatted =
     state[tokenAddress] &&
@@ -633,12 +650,12 @@ export function useTokenTransactions(tokenAddress) {
   useEffect(() => {
     async function checkForTxns() {
       if (!tokenTxns && allPairsFormatted) {
-        let transactions = await getTokenTransactions(allPairsFormatted)
+        let transactions = await getTokenTransactions(allPairsFormatted, isV3, client)
         updateTokenTxns(tokenAddress, transactions)
       }
     }
-    checkForTxns()
-  }, [tokenTxns, tokenAddress, updateTokenTxns, allPairsFormatted])
+    client && checkForTxns()
+  }, [tokenTxns, tokenAddress, updateTokenTxns, allPairsFormatted, isV3, client])
 
   return tokenTxns || []
 }
@@ -647,15 +664,17 @@ export function useTokenPairs(tokenAddress) {
   const [state, { updateAllPairs }] = useTokenDataContext()
   const tokenPairs = state?.[tokenAddress]?.[TOKEN_PAIRS_KEY]
 
+  const { isV3, client } = useVersion()
+
   useEffect(() => {
     async function fetchData() {
-      let allPairs = await getTokenPairs(tokenAddress)
+      let allPairs = await getTokenPairs(tokenAddress, isV3, client)
       updateAllPairs(tokenAddress, allPairs)
     }
-    if (!tokenPairs && isAddress(tokenAddress)) {
+    if (!tokenPairs && isAddress(tokenAddress) && client) {
       fetchData()
     }
-  }, [tokenAddress, tokenPairs, updateAllPairs])
+  }, [tokenAddress, tokenPairs, updateAllPairs, isV3, client])
 
   return tokenPairs || []
 }
@@ -663,15 +682,18 @@ export function useTokenPairs(tokenAddress) {
 export function useTokenChartData(tokenAddress) {
   const [state, { updateChartData }] = useTokenDataContext()
   const chartData = state?.[tokenAddress]?.chartData
+
+  const { isV3, client } = useVersion()
+
   useEffect(() => {
     async function checkForChartData() {
-      if (!chartData) {
-        let data = await getTokenChartData(tokenAddress)
+      if (!chartData && client) {
+        let data = await getTokenChartData(tokenAddress, isV3, client)
         updateChartData(tokenAddress, data)
       }
     }
-    checkForChartData()
-  }, [chartData, tokenAddress, updateChartData])
+    client && checkForChartData()
+  }, [chartData, tokenAddress, updateChartData, isV3, client])
   return chartData
 }
 
@@ -687,6 +709,8 @@ export function useTokenPriceData(tokenAddress, timeWindow, interval = 3600) {
   const chartData = state?.[tokenAddress]?.[timeWindow]?.[interval]
   const latestBlock = useLatestBlock()
 
+  const { isV3, client } = useVersion()
+
   useEffect(() => {
     const currentTime = dayjs.utc()
     const windowSize = timeWindow === timeframeOptions.MONTH ? 'month' : 'week'
@@ -694,13 +718,13 @@ export function useTokenPriceData(tokenAddress, timeWindow, interval = 3600) {
       timeWindow === timeframeOptions.ALL_TIME ? 1600000000 : currentTime.subtract(1, windowSize).startOf('hour').unix()
 
     async function fetch() {
-      let data = await getIntervalTokenData(tokenAddress, startTime, interval, latestBlock)
+      let data = await getIntervalTokenData(tokenAddress, startTime, interval, latestBlock, isV3, client)
       updatePriceData(tokenAddress, data, timeWindow, interval)
     }
-    if (!chartData) {
+    if (!chartData && client) {
       fetch()
     }
-  }, [chartData, interval, timeWindow, tokenAddress, updatePriceData, latestBlock])
+  }, [chartData, interval, timeWindow, tokenAddress, updatePriceData, latestBlock, isV3, client])
 
   return chartData
 }

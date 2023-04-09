@@ -29,7 +29,7 @@ import { usePathDismissed, useSavedTokens } from '../contexts/LocalStorage'
 import { Hover, PageWrapper, ContentWrapper, StyledIcon } from '../components'
 import { PlusCircle, Bookmark } from 'react-feather'
 import FormattedName from '../components/FormattedName'
-import { useListedTokens } from '../contexts/Application'
+import { useListedTokens, useVersion } from '../contexts/Application'
 
 const DashboardWrapper = styled.div`
   width: 100%;
@@ -167,6 +167,8 @@ function TokenPage({ address, history }) {
     })
   }, [])
 
+  const { versionLabel } = useVersion()
+
   return (
     <PageWrapper>
       <ThemedBackground backgroundColor={transparentize(0.6, '#42D784')} />
@@ -181,7 +183,7 @@ function TokenPage({ address, history }) {
         <RowBetween style={{ flexWrap: 'wrap', alingItems: 'start' }}>
           <AutoRow align="flex-end" style={{ width: 'fit-content' }}>
             <TYPE.body>
-              <BasicLink to="/tokens">{'Tokens '}</BasicLink>→ {symbol}
+              <BasicLink to={`/tokens/${versionLabel}`}>{'Tokens '}</BasicLink>→ {symbol}
               {'  '}
             </TYPE.body>
             <Link

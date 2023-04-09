@@ -30,7 +30,7 @@ import { usePathDismissed, useSavedPairs } from '../contexts/LocalStorage'
 
 import { Bookmark, PlusCircle } from 'react-feather'
 import FormattedName from '../components/FormattedName'
-import { useListedTokens } from '../contexts/Application'
+import { useListedTokens, useVersion } from '../contexts/Application'
 
 const DashboardWrapper = styled.div`
   width: 100%;
@@ -197,6 +197,8 @@ function PairPage({ pairAddress, history }) {
     })
   }, [])
 
+  const { versionLabel } = useVersion()
+
   const [savedPairs, addPair] = useSavedPairs()
 
   const listedTokens = useListedTokens()
@@ -215,7 +217,7 @@ function PairPage({ pairAddress, history }) {
         <RowBetween>
           <AutoRow align="flex-end" style={{ width: 'fit-content' }}>
             <TYPE.body>
-              <BasicLink to="/pairs">{'Pairs '}</BasicLink>→ {token0?.symbol}-{token1?.symbol}
+              <BasicLink to={`/pairs/${versionLabel}`}>{'Pairs '}</BasicLink>→ {token0?.symbol}-{token1?.symbol}
             </TYPE.body>
             <Link
               style={{ width: 'fit-content' }}
